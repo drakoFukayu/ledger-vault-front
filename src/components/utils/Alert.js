@@ -1,36 +1,55 @@
 //@flow
+import { withStyles } from "material-ui/styles";
 import React from "react";
 import Snackbar from "material-ui/Snackbar";
+import { SnackbarContent } from "material-ui/Snackbar";
 
-function Alert(props: {
-  className: string,
-  children: *,
-  style: Object,
-  open: boolean,
-  theme: string,
-  title: *
-}) {
+import IconCheck from "../icons/Validate";
+import IconError from "../icons/Error";
+import colors from "../../shared/colors";
+
+const common = {
+  padding: "30px",
+  width: "380px",
+  fontFamily: "inherit",
+  fontSize: "11px",
+  lineHeight: "1.82",
+  boxShadow: "0 10px 10px 0 rgba(0, 0, 0, 0.04)"
+};
+const error = {
+  root: {
+    background: "#ea2e49",
+    ...common
+  }
+};
+const success = {
+  root: {
+    background: "#27d0e2",
+    ...common
+  }
+};
+
+function Snack(props: { message: *, classes: Object }) {
+  const { message, classes } = props;
+  return <SnackbarContent message={message} classes={{ root: classes.root }} />;
+}
+
+const Error = withStyles(error)(Snack);
+const Success = withStyles(success)(Snack);
+
+function Alert(props: { children: *, open: boolean, theme: string, title: * }) {
   const { title, children, theme: themeName, ...newProps } = props;
-  let iconDiv = "";
-  let titleDiv = "";
+  let iconDiv = null;
+  let titleDiv = null;
   const theme = {};
-  const bodyStyle: Object = {
-    height: "initial",
-    lineHeight: "initial",
-    padding: "40px",
-    width: "379px",
-    boxSizing: "border-box"
-  };
 
   switch (themeName) {
     case "success":
-      theme.color = "#27d0e2";
-      theme.icon = "check";
+      theme.icon = <IconCheck color={colors.white} size={38} />;
       break;
 
     case "error":
-      theme.color = "#ea2e49";
-      theme.icon = "close";
+      theme.icon = <IconError color={colors.white} size={38} />;
       break;
 
     default:
@@ -39,16 +58,8 @@ function Alert(props: {
       break;
   }
 
-  if (theme.color) {
-    bodyStyle.backgroundColor = theme.color;
-  }
-
   if (theme.icon) {
-    iconDiv = (
-      <div style={{ fontSize: "38px", lineHeight: 0, marginRight: "30px" }}>
-        <i className="material-icons">{theme.icon}</i>
-      </div>
-    );
+    iconDiv = <div style={{ marginRight: 30 }}>{theme.icon}</div>;
   }
 
   if (title) {
@@ -58,7 +69,7 @@ function Alert(props: {
         style={{
           fontWeight: 600,
           textTransform: "uppercase",
-          marginBottom: "15px"
+          marginBottom: "10px"
         }}
       >
         {title}
@@ -79,31 +90,16 @@ function Alert(props: {
   return (
     <Snackbar
       {...newProps}
-      className={`top-message ${props.className}`}
-      style={{
-        top: 0,
-        bottom: "auto",
-        transform: props.open
-          ? "translate3d(-50%, 0, 0)"
-          : "translate3d(-50%, -100%, 0)",
-        ...props.style
-      }}
-      bodyStyle={bodyStyle}
-      contentStyle={{
-        fontSize: "11px"
-      }}
-      message={content}
-    />
+      className="top-message"
+      anchorOrigin={{ vertical: "top", horizontal: "center" }}
+    >
+      {themeName === "error" ? (
+        <Error message={content} />
+      ) : (
+        <Success message={content} />
+      )}
+    </Snackbar>
   );
 }
-
-Alert.defaultProps = {
-  className: "",
-  children: "",
-  style: {},
-  open: false,
-  theme: "",
-  title: ""
-};
 
 export default Alert;

@@ -1,10 +1,17 @@
 //@flow
-import Query from "../../restlay/Query";
-import type { Account } from "../../data/types";
+import Query from "restlay/Query";
+import type { Account } from "data/types";
+
+export const speeds = {
+  slow: "slow",
+  medium: "medium",
+  fast: "fast"
+};
+export type Speed = $Values<typeof speeds>;
 
 type Input = {
   account: Account,
-  speed: "slow" | "medium" | "fast"
+  speed: Speed
 };
 type Response = {
   value: number

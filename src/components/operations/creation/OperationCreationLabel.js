@@ -1,33 +1,45 @@
 // @flow
 import React, { PureComponent } from "react";
-import { TextField } from "../../../components";
+import { TextField } from "components";
+import { withStyles } from "material-ui/styles";
 
 type Props = {
-  title: string,
-  comment: string,
-  updateTitle: Function,
-  updateComment: Function
+  classes: { [_: $Keys<typeof styles>]: string },
+};
+
+const styleInput = { fontSize: "16px" };
+const styleLabel = { fontSize: "16px", fontWeight: 600 };
+
+const styles = {
+  base: {
+    padding: "0 40px",
+  },
+  label: {
+    marginBottom: 20,
+  },
 };
 
 class OperationCreationLabel extends PureComponent<Props> {
   update = (ev: SyntheticEvent<HTMLInputElement>) => {
-    console.log(ev.currentTarget.value);
+    console.warn("NOT IMPLEMENTED", ev.currentTarget.value);
   };
 
   render() {
+    const { classes } = this.props;
+
     return (
-      <div className="operation-creation-label">
+      <div className={classes.base}>
         <TextField
-          className="operation-creation-label-title"
-          id="operation-creation-label-title"
-          hintText="Title"
+          classes={{ root: classes.label }}
+          fullWidth
+          placeholder="Title"
+          inputProps={{ style: styleLabel }}
           onChange={this.update}
         />
         <TextField
-          className="operation-creation-label-comment"
-          id="operation-creation-label-comment"
-          hintText="Comment"
-          multiLine
+          placeholder="Add a comment"
+          inputProps={{ style: styleInput }}
+          fullWidth
           onChange={this.update}
         />
       </div>
@@ -35,4 +47,4 @@ class OperationCreationLabel extends PureComponent<Props> {
   }
 }
 
-export default OperationCreationLabel;
+export default withStyles(styles)(OperationCreationLabel);

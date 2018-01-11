@@ -1,23 +1,18 @@
 //@flow
 import React, { Component } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import type { Account, Operation, BalanceEntity } from "../../data/types";
-import { getUnitFromRate, getAccountCurrencyUnit } from "../../data/currency";
-import { Select, Option } from "../../components/Select";
-import DateFormat from "../../components/DateFormat";
-import QuicklookWrap from "./QuickLookWrap";
-import Card from "../../components/Card";
-import AccountQuery from "../../api/queries/AccountQuery";
-import TryAgain from "../../components/TryAgain";
-import SpinnerCard from "../../components/spinners/SpinnerCard";
-import connectData from "../../restlay/connectData";
-
-type Props = {
-  accountId: string,
-  account: Account,
-  operations: Array<Operation>,
-  balance: BalanceEntity
-};
+import SelectTab from "components/SelectTab/SelectTab";
+import type { Account } from "data/types";
+import { getAccountCurrencyUnit, getFiatUnit } from "data/currency";
+import BlueSelect from "components/BlueSelect";
+import { MenuItem } from "material-ui/Menu";
+import DateFormat from "components/DateFormat";
+import Quicklook from "./QuickLook";
+import Card from "components/Card";
+import AccountQuery from "api/queries/AccountQuery";
+import TryAgain from "components/TryAgain";
+import SpinnerCard from "components/spinners/SpinnerCard";
+import connectData from "restlay/connectData";
+import { withStyles } from "material-ui/styles";
 
 type State = {
   tabsIndex: number,
@@ -26,6 +21,30 @@ type State = {
 };
 
 type Filter = { title: string, key: string };
+
+const styles = {
+  card: {
+    width: "34.5%",
+    height: "399px"
+  },
+  dateLabel: {
+    fontSize: " 11px",
+    color: "#767676",
+    paddingTop: " 30px",
+    textAlign: " right"
+  },
+  loading: {
+    background: "white",
+    height: "403px",
+    width: "380px"
+  }
+};
+
+type Props = {
+  classes: { [_: $Keys<typeof styles>]: string },
+  accountId: string,
+  account: Account
+};
 
 const quicklookFilters: Array<Filter> = [
   { title: "balance", key: "balance" },
@@ -54,9 +73,11 @@ export class QuicklookCard extends Component<Props, State> {
     return lastWeek;
   };
 
-  onQuicklookFilterChange = (filterTitle: string): void => {
+  onQuicklookFilterChange = (e: *): void => {
     this.setState({
-      quicklookFilter: quicklookFilters.find(elem => elem.key === filterTitle)
+      quicklookFilter: quicklookFilters.find(
+        elem => elem.key === e.target.value
+      )
     });
   };
   selectTab = (index: number): void => {
@@ -123,88 +144,81 @@ export class QuicklookCard extends Component<Props, State> {
     return res;
   };
 
+  tabsList = ["year", "month", "week", "day"];
+
   render() {
-    const { operations, account, balance, reloading, accountId } = this.props;
+    const { account, accountId, classes } = this.props;
     const { tabsIndex, labelDateRange, quicklookFilter } = this.state;
     let currencyUnit = getAccountCurrencyUnit(account);
-    const selectedBalance =
-      quicklookFilter === "balance" ? "balance" : "counterValueBalance";
+    const filter =
+      quicklookFilter.key === "balance" ? "balance" : "counterValueBalance";
+
+    const range = this.tabsList[tabsIndex];
     // FIXME PROBABLY NEEDS TO BE FIXED
-    if (quicklookFilter === "countervalue") {
-      currencyUnit = getUnitFromRate(operations[0].rate);
+    if (quicklookFilter.key === "countervalue") {
+      currencyUnit = getFiatUnit(account.settings.fiat);
     }
     return (
-      selectedBalance.length && (
-        <Card
-          reloading={reloading}
-          className="quicklook"
-          title="Quicklook"
-          titleRight={
-            <Select onChange={this.onQuicklookFilterChange}>
-              {quicklookFilters.map(({ title, key }) => (
-                <Option
-                  key={key}
-                  value={key}
-                  selected={quicklookFilter.key === key}
-                >
-                  {title}
-                </Option>
-              ))}
-            </Select>
-          }
-        >
-          <Tabs
-            className=""
-            selectedIndex={tabsIndex}
-            onSelect={this.selectTab}
+      <Card
+        title="Quicklook"
+        className={classes.card}
+        titleRight={
+          <BlueSelect
+            value={quicklookFilter.key}
+            onChange={this.onQuicklookFilterChange}
+            disableUnderline
+            style={{ minWidth: 120, textAlign: "right", fontSize: 11 }}
           >
-            <header>
-              <TabList>
-                <Tab> Year {}</Tab>
-                <Tab disabled={false}>month</Tab>
-                <Tab disabled={false}>week</Tab>
-                <Tab disabled={false}>day</Tab>
-              </TabList>
-            </header>
-            <div className="dateLabel">
-              From {labelDateRange[0]} to {labelDateRange[1]}
-            </div>
-            <QuicklookWrap
-              accountId={accountId}
-              filter={
-                quicklookFilter.key === "balance"
-                  ? "balance"
-                  : "counterValueBalance"
-              }
-              granularity={tabsIndex}
-              dateRange={this.getDateRange(tabsIndex)}
-              currencyUnit={currencyUnit}
-              currencyColor={account.currency.color}
-            />
-            <TabPanel className="tabs_panel" />
-            <TabPanel className="tabs_panel" />
-            <TabPanel className="tabs_panel" />
-            <TabPanel className="tabs_panel" />
-          </Tabs>
-        </Card>
-      )
+            {quicklookFilters.map(({ title, key }) => (
+              <MenuItem
+                disableRipple
+                style={{ color: "#27d0e2" }}
+                key={key}
+                value={key}
+              >
+                <span style={{ color: "black" }}>{title.toUpperCase()}</span>
+              </MenuItem>
+            ))}
+          </BlueSelect>
+        }
+      >
+        <header>
+          <SelectTab
+            tabs={this.tabsList}
+            onChange={this.selectTab}
+            selected={tabsIndex}
+            theme="header"
+          />
+        </header>
+        <div className={classes.dateLabel}>
+          From {labelDateRange[0]} to {labelDateRange[1]}
+        </div>
+        <Quicklook
+          accountId={accountId}
+          filter={filter}
+          range={range}
+          currencyUnit={currencyUnit}
+          currencyColor={account.currency.color}
+          key={accountId + range}
+        />
+      </Card>
     );
   }
 }
 
 const RenderError = ({ error, restlay }: *) => (
-  <Card className="quicklook" title="Quicklook">
+  <Card title="Quicklook">
     <TryAgain error={error} action={restlay.forceFetch} />
   </Card>
 );
 
-const RenderLoading = () => (
-  <Card className="quicklook" title="Quicklook">
+const RenderLoading = withStyles(styles)(({ classes }) => (
+  <Card className={classes.card} title="Quicklook">
     <SpinnerCard />
   </Card>
-);
+));
 
-export default connectData(QuicklookCard, {
+export default connectData(withStyles(styles)(QuicklookCard), {
   queries: {
     account: AccountQuery
   },

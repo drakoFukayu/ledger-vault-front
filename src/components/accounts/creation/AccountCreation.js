@@ -1,14 +1,11 @@
 //@flow
 import { connect } from "react-redux";
 import React, { Component } from "react";
-import { withRouter } from "react-router";
-import BlurDialog from "../../BlurDialog"; // FIXME use ModalRoute
 import MainCreation from "./MainCreation";
 import AccountCreationMembers from "./AccountCreationMembers";
 import AccountCreationApprovals from "./AccountCreationApprovals";
 import AccountCreationTimeLock from "./AccountCreationTimeLock";
 import AccountCreationRateLimiter from "./AccountCreationRateLimiter";
-import "./AccountCreation.css";
 
 import {
   changeTab,
@@ -20,7 +17,7 @@ import {
   setTimelock,
   setRatelimiter,
   clearState
-} from "../../../redux/modules/account-creation";
+} from "redux/modules/account-creation";
 
 type Props = {
   onChangeAccountName: Function,
@@ -33,8 +30,6 @@ type Props = {
   onSetApprovals: Function,
   onSetTimelock: Function,
   onSetRatelimiter: Function,
-  onEnableRatelimiter: Function,
-  onChangeRatelimiter: Function,
   close: Function,
   onClearState: Function,
   accountCreation: *,
@@ -59,19 +54,13 @@ class AccountCreation extends Component<Props> {
       onAddMember,
       onSetApprovals,
       onSetTimelock,
-      onSetRatelimiter,
-      onEnableRatelimiter,
-      onChangeRatelimiter
+      onSetRatelimiter
     } = this.props;
 
     const account = this.props.accountCreation;
     return (
       <div>
-        <BlurDialog
-          open={account.internModalId === "members"}
-          nopadding
-          onRequestClose={() => onSwitchInternalModal("main")}
-        >
+        {account.internModalId === "members" && (
           <div id="account-creation" className="modal">
             <AccountCreationMembers
               approvers={account.approvers}
@@ -79,8 +68,8 @@ class AccountCreation extends Component<Props> {
               addMember={onAddMember}
             />
           </div>
-        </BlurDialog>
-        <BlurDialog open={account.internModalId === "approvals"} nopadding>
+        )}
+        {account.internModalId === "approvals" && (
           <div className="modal">
             <AccountCreationApprovals
               setApprovals={onSetApprovals}
@@ -89,8 +78,8 @@ class AccountCreation extends Component<Props> {
               switchInternalModal={onSwitchInternalModal}
             />
           </div>
-        </BlurDialog>
-        <BlurDialog open={account.internModalId === "time-lock"} nopadding>
+        )}
+        {account.internModalId === "time-lock" && (
           <div className="modal">
             <AccountCreationTimeLock
               switchInternalModal={onSwitchInternalModal}
@@ -98,8 +87,8 @@ class AccountCreation extends Component<Props> {
               setTimelock={onSetTimelock}
             />
           </div>
-        </BlurDialog>
-        <BlurDialog open={account.internModalId === "rate-limiter"} nopadding>
+        )}
+        {account.internModalId === "rate-limiter" && (
           <div className="modal">
             <AccountCreationRateLimiter
               switchInternalModal={onSwitchInternalModal}
@@ -107,13 +96,9 @@ class AccountCreation extends Component<Props> {
               setRatelimiter={onSetRatelimiter}
             />
           </div>
-        </BlurDialog>
+        )}
 
-        <BlurDialog
-          open={account.internModalId === "main"}
-          nopadding
-          onRequestClose={this.close}
-        >
+        {account.internModalId === "main" && (
           <div id="account-creation" className="modal">
             <MainCreation
               account={account}
@@ -125,7 +110,7 @@ class AccountCreation extends Component<Props> {
               switchInternalModal={onSwitchInternalModal}
             />
           </div>
-        </BlurDialog>
+        )}
       </div>
     );
   }
@@ -147,6 +132,4 @@ const mapDispatchToProps = dispatch => ({
   onClearState: () => dispatch(clearState())
 });
 
-export default withRouter(
-  connect(mapStateToProps, mapDispatchToProps)(AccountCreation)
-);
+export default connect(mapStateToProps, mapDispatchToProps)(AccountCreation);

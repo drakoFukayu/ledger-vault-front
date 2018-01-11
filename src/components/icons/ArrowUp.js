@@ -1,12 +1,26 @@
 //@flow
 import React from "react";
+import classnames from "classnames";
+import { withStyles } from "material-ui/styles";
 
-function ArrowUp(props: *) {
+const styles = {
+  common: {
+    width: "8px"
+  },
+  up: {
+    transform: "rotate(45deg)"
+  },
+  down: {
+    transform: "rotate(135deg)"
+  }
+};
+function Arrow({ classes, type, color }: *) {
+  const stroke = color ? color : "#000";
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 30.32 32.83"
-      {...props}
+      className={classnames(classes.common, classes[type])}
     >
       <title>ArrowUp</title>
       <g id="Layer_2" data-name="Layer 2">
@@ -15,7 +29,7 @@ function ArrowUp(props: *) {
             <polyline
               style={{
                 fill: "none",
-                stroke: "#000",
+                stroke: stroke,
                 strokeMiterlimit: "10",
                 strokeWidth: "4px"
               }}
@@ -24,7 +38,7 @@ function ArrowUp(props: *) {
             <line
               style={{
                 fill: "none",
-                stroke: "#000",
+                stroke: stroke,
                 strokeMiterlimit: "10",
                 strokeWidth: "4px"
               }}
@@ -40,4 +54,4 @@ function ArrowUp(props: *) {
   );
 }
 
-export default ArrowUp;
+export default withStyles(styles)(Arrow);

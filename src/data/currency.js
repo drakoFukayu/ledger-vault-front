@@ -1,5 +1,5 @@
 //@flow
-import fiatUnits from "../fiat-units";
+import fiatUnits from "constants/fiatUnits";
 import type { Account, Currency, Unit, Rate } from "./types";
 
 // This define utility to deal with currencies, units, countervalues
@@ -20,6 +20,14 @@ export function getCurrency(
     throw new Error(`currency "${currencyName}" not found`);
   }
   return currency;
+}
+
+export function getFiatUnit(fiat: string): Unit {
+  const unit = fiatUnits[fiat];
+  if (!unit) {
+    throw new Error(`unit "${fiat}" not found`);
+  }
+  return unit;
 }
 
 export function getUnitFromRate(rate: Rate): Unit {

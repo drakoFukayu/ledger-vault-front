@@ -1,9 +1,9 @@
 //@flow
 import React, { Component } from "react";
 import BadgeCurrency from "../BadgeCurrency";
-import type { Currency } from "../../data/types";
-import "./index.css";
+import type { Currency } from "data/types";
 
+// FIXME why is that not just taking Account ?
 class AccountName extends Component<{
   name: string | React$Node,
   currency: Currency
@@ -11,9 +11,9 @@ class AccountName extends Component<{
   render() {
     const { name, currency } = this.props;
     return (
-      <span className="account-name">
+      <span>
         <BadgeCurrency currency={currency} />
-        <span className="name">{name}</span>
+        <span>{name}</span>
       </span>
     );
   }

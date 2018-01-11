@@ -1,11 +1,11 @@
 //@flow
-import FiatUnits from "../fiat-units";
+import fiatUnits from "constants/fiatUnits";
 
 // This contains all the flow types for the Data Model (coming from the API)
 // We have a little variation with the way client denormalize the data,
 // therefore we will have _T_Entity types to be the denormalized form of _T_
 
-export type Fiat = $Keys<typeof FiatUnits>;
+export type Fiat = $Keys<typeof fiatUnits>;
 
 export type Rate = {
   value: number,
@@ -37,7 +37,8 @@ export type SecurityScheme = {
   quorum: number,
   approvers: string[],
   time_lock?: number,
-  rate_limiter?: RateLimiter
+  rate_limiter?: RateLimiter,
+  auto_expire?: number | null
 };
 
 export type AccountSettings = {
@@ -166,26 +167,4 @@ export type Operation = OperationCommon & {
 };
 export type OperationEntity = OperationCommon & {
   notes: NoteEntity[]
-};
-
-type DataPoint = {
-  date: number,
-  value: number
-};
-
-export type DataPointEnhanced = {
-  ...DataPoint,
-  x: number,
-  y: number
-};
-
-export type PieChartData = {
-  account: Account,
-  balance: number,
-  counterValueBalance: number
-};
-
-export type BalanceEntity = {
-  balance: DataPoint[],
-  counterValueBalance: DataPoint[]
 };

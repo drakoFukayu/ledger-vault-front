@@ -92,6 +92,7 @@ test("a network error can be recovered after an update when many queries", async
   const Animal = connectData(({ animal }) => animal.id, {
     RenderError: () => "oops",
     queries: { animal: AnimalQuery, animals: AnimalsQuery },
+    // $FlowFixMe
     propsToQueryParams: ({ animalId }) => ({ animalId })
   });
   const inst = renderer.create(render(<Animal animalId="DOES_NOT_EXIST" />));
@@ -137,7 +138,12 @@ test("a thrown error can be recovered after an update", async () => {
   const render = createRender(net.network);
   const Animal = connectData(
     ({ animal }) => {
-      if (animal.id === "id_max") throw new Error("sorry_max");
+      if (animal.id === "id_max") {
+        const err = new Error("sorry_max");
+        //$FlowFixMe
+        err.suppressReactErrorLogging = true;
+        throw err;
+      }
       return animal.id;
     },
     {

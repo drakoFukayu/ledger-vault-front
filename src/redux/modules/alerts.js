@@ -1,5 +1,6 @@
 //@flow
-import { AUTHENTICATION_FAILED, LOGOUT, AUTHENTICATION_SUCCEED } from "./auth";
+import { LOGOUT } from "./auth";
+import { DATA_FETCHED, DATA_FETCHED_FAIL } from "restlay/dataStore";
 export const REMOVE_MESSAGE = "messages/REMOVE_MESSAGE";
 export const ADD_MESSAGE = "messages/ADD_MESSAGE";
 
@@ -43,7 +44,7 @@ export default function reducer(state: Store = initialState, action: Object) {
   }
 
   switch (action.type) {
-    case "DATA_FETCHED": {
+    case DATA_FETCHED: {
       const { queryOrMutation, result } = action;
       const notif =
         queryOrMutation.getSuccessNotification &&
@@ -54,7 +55,7 @@ export default function reducer(state: Store = initialState, action: Object) {
       }
       return state;
     }
-    case "DATA_FETCHED_FAIL": {
+    case DATA_FETCHED_FAIL: {
       const { queryOrMutation, error } = action;
       const notif =
         queryOrMutation.getErrorNotification &&
@@ -74,22 +75,7 @@ export default function reducer(state: Store = initialState, action: Object) {
         visible: true,
         title: "See you soon!",
         content:
-          "You have been successfully loggee out. You can now safely close your web browser.",
-        type: "success"
-      };
-    case AUTHENTICATION_FAILED:
-      return {
-        visible: true,
-        title: "Unkown team domain",
-        content:
-          "This team domain is unkown. Contact your administrator to get more information.",
-        type: "error"
-      };
-    case AUTHENTICATION_SUCCEED:
-      return {
-        visible: true,
-        title: "Welcome",
-        content: "Hello. Welcome on Ledger Vault Application",
+          "You have been successfully logged out. You can now safely close your web browser.",
         type: "success"
       };
     case REMOVE_MESSAGE:

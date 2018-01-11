@@ -1,16 +1,31 @@
 //@flow
 import React, { PureComponent } from "react";
 import SpinnerCard from "../spinners/SpinnerCard";
-import "./index.css";
+import cx from "classnames";
+import { withStyles } from "material-ui/styles";
 
-class ModalLoading extends PureComponent<*> {
+const styles = {
+  base: {
+    background: "white",
+    width: "440px",
+    height: "615px"
+  }
+};
+
+type Props = {
+  classes: { [_: $Keys<typeof styles>]: string },
+  className?: string
+};
+
+class ModalLoading extends PureComponent<Props> {
   render() {
+    const { classes, className } = this.props;
     return (
-      <div className="modal-loading">
+      <div className={cx(classes.base, className)}>
         <SpinnerCard />
       </div>
     );
   }
 }
 
-export default ModalLoading;
+export default withStyles(styles)(ModalLoading);

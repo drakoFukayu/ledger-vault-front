@@ -1,20 +1,38 @@
 //@flow
-import React from "react";
+import React, { PureComponent } from "react";
+import classnames from "classnames";
+import { withStyles } from "material-ui/styles";
 
-function Plus(props: *) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" {...props}>
-      <title>plus_1</title>
-      <g id="Layer_2" data-name="Layer 2">
-        <g id="Solid">
-          <polygon
-            id="Plus"
-            points="12.6 30 12.6 17.4 0 17.4 0 12.6 12.6 12.6 12.6 0 17.4 0 17.4 12.6 30 12.6 30 17.4 17.4 17.4 17.4 30 12.6 30"
-          />
-        </g>
-      </g>
-    </svg>
-  );
+const styles = {
+  common: {
+    width: 16
+  }
+};
+
+type Props = {
+  color: string,
+  classes: { [_: $Keys<typeof styles>]: string },
+  className: string
+};
+
+class Plus extends PureComponent<Props> {
+  static defaultProps = {
+    color: "currentColor"
+  };
+  render() {
+    const { color, className, classes } = this.props;
+    return (
+      <svg
+        viewBox="0 0 30 30"
+        className={classnames(classes.common, className)}
+      >
+        <polygon
+          fill={color}
+          stroke="none"
+          points="12.6 30 12.6 17.4 0 17.4 0 12.6 12.6 12.6 12.6 0 17.4 0 17.4 12.6 30 12.6 30 17.4 17.4 17.4 17.4 30 12.6 30"
+        />
+      </svg>
+    );
+  }
 }
-
-export default Plus;
+export default withStyles(styles)(Plus);

@@ -1,8 +1,8 @@
 //@flow
 import React from "react";
 import { connect } from "react-redux";
-import { Alert } from "../components";
-import { closeMessage } from "../redux/modules/alerts";
+import { Alert } from "components";
+import { closeMessage } from "redux/modules/alerts";
 
 const mapStateToProps = state => ({
   alerts: state.alerts
@@ -25,7 +25,7 @@ export function MessagesContainer(props: {
   return (
     <div>
       <Alert
-        onRequestClose={onClose}
+        onClose={onClose}
         open={alerts.visible}
         autoHideDuration={4000}
         title={alerts.title}

@@ -1,88 +1,243 @@
 //@flow
 import React, { Component } from "react";
+import cx from "classnames";
 import debounce from "lodash/debounce";
 import { Switch, Route, Redirect } from "react-router-dom";
 import { NavLink } from "react-router-relative-link";
-import { Tabs, Tab, TabList } from "react-tabs";
-import FiatUnits from "../../fiat-units";
-import TextField from "material-ui/TextField";
-import connectData from "../../restlay/connectData";
-import type { RestlayEnvironment } from "../../restlay/connectData";
-import AccountsQuery from "../../api/queries/AccountsQuery";
-import SettingsDataQuery from "../../api/queries/SettingsDataQuery";
-import SaveAccountSettingsMutation from "../../api/mutations/SaveAccountSettingsMutation";
-import SpinnerCard from "../../components/spinners/SpinnerCard";
-import { Select, Option } from "../Select";
+import Select from "material-ui/Select";
+import { MenuItem } from "material-ui/Menu";
+import { withStyles } from "material-ui/styles";
+
+import SelectTab from "components/SelectTab/SelectTab";
+import fiatUnits from "constants/fiatUnits";
+import connectData from "restlay/connectData";
+import type { RestlayEnvironment } from "restlay/connectData";
+import AccountsQuery from "api/queries/AccountsQuery";
+import SettingsDataQuery from "api/queries/SettingsDataQuery";
+import SaveAccountSettingsMutation from "api/mutations/SaveAccountSettingsMutation";
+import SpinnerCard from "components/spinners/SpinnerCard";
 import DialogButton from "../buttons/DialogButton";
-import {
-  BigSecurityTimeLockIcon,
-  BigSecurityMembersIcon,
-  BigSecurityRateLimiterIcon
-} from "../icons";
+
 import BadgeSecurity from "../BadgeSecurity";
 import RateLimiterValue from "../RateLimiterValue";
 import TimeLockValue from "../TimeLockValue";
+import SettingsTextField from "../SettingsTextField";
+import colors from "../../shared/colors";
 
-import type {
-  Account,
-  SecurityScheme,
-  AccountSettings
-} from "../../data/types";
-import type { Response as SettingsDataQueryResponse } from "../../api/queries/SettingsDataQuery";
-import "./index.css";
+import {
+  BigSecurityTimeLockIcon,
+  BigSecurityMembersIcon,
+  BigSecurityRateLimiterIcon,
+  BigSecurityAutoExpireIcon
+} from "../icons";
 
-const { REACT_APP_SECRET_CODE } = process.env;
+import type { Account, SecurityScheme, AccountSettings } from "data/types";
 
-class NavAccount extends Component<{
-  account: Account
-}> {
-  render() {
-    const { account } = this.props;
-    return (
-      <NavLink className="nav-account" to={account.id}>
-        <span className="name">{account.name}</span>
-        <span className="currency">{account.currency.name}</span>
-      </NavLink>
-    );
+import type { Response as SettingsDataQueryResponse } from "api/queries/SettingsDataQuery";
+
+const styles = {
+  container: {
+    display: "flex",
+    width: 690,
+    height: 600
+  },
+  side: {
+    width: 250,
+    flexShrink: 0,
+    backgroundColor: colors.cream,
+    display: "flex",
+    flexDirection: "column"
+  },
+  sideGrow: {
+    padding: 40,
+    paddingBottom: 0,
+    overflowY: "auto",
+    flexGrow: 1
+  },
+  bigTitle: {
+    fontSize: 18,
+    lineHeight: "12px"
+  },
+  capsTitle: {
+    fontSize: 12,
+    lineHeight: "12px",
+    fontWeight: 600,
+    textTransform: "uppercase"
+  },
+  contentWrapper: {
+    flexGrow: 1,
+    display: "flex",
+    flexDirection: "column"
+  },
+  content: {
+    flexGrow: 1,
+    padding: 40,
+    overflowY: "auto",
+    "&> * + *": {
+      marginTop: 40
+    }
+  },
+  contentSections: {
+    "&> * + *": {
+      marginTop: 30
+    }
+  },
+  footer: {
+    flexShrink: 0,
+    padding: "40px 40px 0 0"
+  },
+  sideItems: {
+    padding: "5px 0",
+    "&> * + *": {
+      borderTop: `1px solid ${colors.argile}`
+    }
+  },
+  sideItem: {
+    position: "relative",
+    padding: "20px 0",
+    display: "block",
+    textDecoration: "none",
+    opacity: 0.5,
+    "&> * + *": {
+      marginTop: 10
+    },
+    "&.active": {
+      opacity: 1,
+      "&:before": {
+        width: 5
+      }
+    },
+    "&:hover": {
+      "&:before": {
+        width: 5
+      }
+    },
+    "&:before": {
+      content: '""',
+      height: 22,
+      position: "absolute",
+      left: -40,
+      backgroundColor: "currentColor",
+      top: 30,
+      width: 0,
+      transition: "width 0.5s ease"
+    }
+  },
+  sideItemAccountName: {
+    // forced to put !important here because
+    // else text take color of the link
+    color: `${colors.black} !important`,
+    fontSize: 13
+  },
+  sideItemCurrencyName: {
+    // forced to put !important here because
+    // else text take color of the link
+    color: `${colors.steel} !important`,
+    textTransform: "uppercase",
+    fontWeight: 600,
+    fontSize: 10
+  },
+  sideFooter: {
+    padding: 40,
+    color: colors.steel,
+    fontSize: 11,
+    "&> * + *": {
+      marginTop: 10
+    }
+  },
+  support: {
+    display: "block",
+    fontWeight: 600,
+    color: colors.steel,
+    textTransform: "uppercase",
+    textDecoration: "none"
+  },
+  securitySchemeView: {
+    display: "flex",
+    alignItems: "flex-start",
+    "& svg": {
+      height: 30
+    },
+    "&> *": {
+      flex: 1
+    }
+  },
+  settingsFields: {
+    "&> * + *": {
+      borderTop: `1px solid ${colors.mouse}`
+    }
+  },
+  settingsField: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between"
+  },
+  settingsFieldTopPadded: {
+    paddingTop: 20
+  },
+  settingsFieldBotPadded: {
+    paddingBottom: 10
+  },
+  settingsFieldLabel: {
+    fontSize: 13
   }
-}
+};
 
 class SettingsField extends Component<{
   label: string,
-  children: React$Node
+  children: React$Node,
+  botPadded?: boolean,
+  topPadded?: boolean,
+  classes: { [_: $Keys<typeof styles>]: string }
 }> {
   render() {
-    const { children, label } = this.props;
+    const { children, label, botPadded, topPadded, classes } = this.props;
     return (
-      <label className="settings-field">
-        <span className="label">{label}</span>
-        <span className="body">{children}</span>
-      </label>
+      <div
+        className={cx(classes.settingsField, {
+          [classes.settingsFieldBotPadded]: botPadded,
+          [classes.settingsFieldTopPadded]: topPadded
+        })}
+      >
+        <div className={classes.settingsFieldLabel}>{label}</div>
+        <div>{children}</div>
+      </div>
     );
   }
 }
 
 class SecuritySchemeView extends Component<{
-  securityScheme: SecurityScheme
+  securityScheme: SecurityScheme,
+  classes: { [_: $Keys<typeof styles>]: string }
 }> {
   render() {
     const {
-      securityScheme: { quorum, approvers, time_lock, rate_limiter }
+      securityScheme: {
+        quorum,
+        approvers,
+        time_lock,
+        rate_limiter,
+        auto_expire
+      },
+      classes
     } = this.props;
     return (
-      <div className="security-scheme">
+      <div className={classes.securitySchemeView}>
         <BadgeSecurity
+          noWidth
           icon={<BigSecurityMembersIcon />}
           label="Members"
           value={`${approvers.length} of ${quorum}`}
         />
         <BadgeSecurity
+          noWidth
           icon={<BigSecurityTimeLockIcon />}
           label="Time-lock"
           disabled={!time_lock}
           value={<TimeLockValue time_lock={time_lock} />}
         />
         <BadgeSecurity
+          noWidth
           icon={<BigSecurityRateLimiterIcon />}
           label="Rate Limiter"
           disabled={!rate_limiter}
@@ -95,6 +250,13 @@ class SecuritySchemeView extends Component<{
             )
           }
         />
+        <BadgeSecurity
+          noWidth
+          icon={<BigSecurityAutoExpireIcon />}
+          label="Auto-expire"
+          disabled={!auto_expire}
+          value={<TimeLockValue time_lock={auto_expire} />}
+        />
       </div>
     );
   }
@@ -103,7 +265,8 @@ class SecuritySchemeView extends Component<{
 type Props = {
   settingsData: SettingsDataQueryResponse,
   account: Account,
-  restlay: RestlayEnvironment
+  restlay: RestlayEnvironment,
+  classes: { [_: $Keys<typeof styles>]: string }
 };
 type State = {
   name: string,
@@ -127,18 +290,23 @@ class AccountSettingsEdit extends Component<Props, State> {
     this.setState(update);
     this.debouncedCommit();
   };
-  onAccountNameChange = (name: string) => {
+  onAccountNameChange = (e: SyntheticInputEvent<>) => {
+    const name = e.target.value;
     this.update({ name });
   };
   onUnitIndexChange = (unitIndex: number) => {
-    this.update({
-      settings: {
-        ...this.state.settings,
-        unitIndex
-      }
-    });
+    if (unitIndex !== this.state.settings.unitIndex) {
+      this.update({
+        settings: {
+          ...this.state.settings,
+          unitIndex
+        }
+      });
+    }
   };
-  onBlockchainExplorerChange = (blockchainExplorer: string) => {
+  onBlockchainExplorerChange = ({
+    target: { value: blockchainExplorer }
+  }: *) => {
     this.update({
       settings: {
         ...this.state.settings,
@@ -146,7 +314,9 @@ class AccountSettingsEdit extends Component<Props, State> {
       }
     });
   };
-  onCountervalueSourceChange = (countervalueSource: string) => {
+  onCountervalueSourceChange = ({
+    target: { value: countervalueSource }
+  }: *) => {
     this.update({
       settings: {
         ...this.state.settings,
@@ -154,7 +324,7 @@ class AccountSettingsEdit extends Component<Props, State> {
       }
     });
   };
-  onFiatChange = (fiat: string) => {
+  onFiatChange = ({ target: { value: fiat } }: *) => {
     this.update({
       settings: {
         ...this.state.settings,
@@ -163,161 +333,201 @@ class AccountSettingsEdit extends Component<Props, State> {
     });
   };
   render() {
-    const { account, settingsData } = this.props;
+    const { account, settingsData, classes } = this.props;
     const { name, settings } = this.state;
     const countervalueSourceData = settingsData.countervalueSources.find(
       c => c.id === settings.countervalueSource
     );
     return (
-      <div className="account-settings">
-        <h3>Security scheme</h3>
-        <SecuritySchemeView securityScheme={account.security_scheme} />
-        <section>
-          <h3>General</h3>
-          <SettingsField label="Account Name">
-            <TextField
-              inputStyle={{ textAlign: "right" }}
-              underlineShow={false}
+      <div className={classes.contentSections}>
+        <div className={classes.capsTitle}>{"Security scheme"}</div>
+        <SecuritySchemeView
+          securityScheme={account.security_scheme}
+          classes={classes}
+        />
+
+        <div className={classes.capsTitle}>{"General"}</div>
+        <div className={classes.settingsFields}>
+          <SettingsField botPadded label="Account Name" classes={classes}>
+            <SettingsTextField
               name="last_name"
-              className="profile-form-name"
               value={name}
               hasError={!name}
               onChange={this.onAccountNameChange}
             />
           </SettingsField>
-          <SettingsField label="Units">
-            <Tabs
-              selectedIndex={settings.unitIndex}
-              onSelect={this.onUnitIndexChange}
-            >
-              <TabList>
-                {account.currency.units.map((unit, tabIndex) => (
-                  <Tab key={tabIndex}>{unit.name}</Tab>
-                ))}
-              </TabList>
-            </Tabs>
+
+          <SettingsField topPadded label="Units" classes={classes}>
+            <SelectTab
+              tabs={account.currency.units.map(elem => elem.name)}
+              onChange={this.onUnitIndexChange}
+              selected={settings.unitIndex}
+              theme="inline"
+            />
           </SettingsField>
-          <SettingsField label="Blockchain Explorer">
-            <Select onChange={this.onBlockchainExplorerChange}>
+          <SettingsField
+            botPadded
+            topPadded
+            label="Blockchain Explorer"
+            classes={classes}
+          >
+            <Select
+              value={settings.blockchainExplorer}
+              onChange={this.onBlockchainExplorerChange}
+              fullWidth
+              disableUnderline
+            >
               {settingsData.blockchainExplorers.map(({ id }) => (
-                <Option
-                  key={id}
-                  selected={settings.blockchainExplorer === id}
-                  value={id}
-                >
+                <MenuItem disableRipple key={id} value={id}>
                   {id}
-                </Option>
+                </MenuItem>
               ))}
             </Select>
           </SettingsField>
-        </section>
-        <section>
-          <h3>Countervalue</h3>
-          <SettingsField label="Source">
-            <Select onChange={this.onCountervalueSourceChange}>
+        </div>
+
+        <div className={classes.capsTitle}>{"Countervalue"}</div>
+        <div className={classes.settingsFields}>
+          <SettingsField botPadded label="Source" classes={classes}>
+            <Select
+              value={settings.countervalueSource}
+              onChange={this.onCountervalueSourceChange}
+              fullWidth
+              disableUnderline
+            >
               {settingsData.countervalueSources.map(({ id }) => (
-                <Option
-                  key={id}
-                  selected={settings.countervalueSource === id}
-                  value={id}
-                >
+                <MenuItem disableRipple key={id} value={id}>
                   {id}
-                </Option>
+                </MenuItem>
               ))}
             </Select>
           </SettingsField>
           {countervalueSourceData ? (
-            <SettingsField label="Source">
-              <Select onChange={this.onFiatChange}>
+            <SettingsField topPadded label="Fiat Currency" classes={classes}>
+              <Select
+                value={settings.fiat}
+                onChange={this.onFiatChange}
+                fullWidth
+                disableUnderline
+              >
                 {countervalueSourceData.fiats.map(fiat => (
-                  <Option
-                    key={fiat}
-                    selected={settings.fiat === fiat}
-                    value={fiat}
-                  >
-                    {fiat} - {FiatUnits[fiat].name}
-                  </Option>
+                  <MenuItem disableRipple key={fiat} value={fiat}>
+                    {fiat} - {fiatUnits[fiat].name}
+                  </MenuItem>
                 ))}
               </Select>
             </SettingsField>
           ) : null}
-        </section>
-      </div>
-    );
-  }
-}
-
-class SettingsModal extends Component<{
-  settingsData: SettingsDataQueryResponse,
-  accounts: Account[],
-  restlay: RestlayEnvironment,
-  close: Function
-}> {
-  render() {
-    const { settingsData, accounts, restlay, close } = this.props;
-    return (
-      <div className="settings modal">
-        <aside>
-          <h3>ACCOUNTS</h3>
-          <div className="accounts">
-            {accounts.map(account => (
-              <NavAccount account={account} key={account.id} />
-            ))}
-          </div>
-          <span className="version">
-            {REACT_APP_SECRET_CODE || "unversioned"}
-          </span>
-          <a className="support" href="mailto:support@ledger.fr">
-            support
-          </a>
-        </aside>
-        <div className="body">
-          <h2>Settings</h2>
-          {accounts.length > 0 ? (
-            <Switch>
-              <Route
-                path="*/settings/:id"
-                render={props => {
-                  const account = accounts.find(
-                    a => a.id === props.match.params.id
-                  );
-                  return account ? (
-                    <AccountSettingsEdit
-                      {...props}
-                      settingsData={settingsData}
-                      key={account.id}
-                      account={account}
-                      restlay={restlay}
-                    />
-                  ) : null;
-                }}
-              />
-              <Route
-                render={() => <Redirect to={"settings/" + accounts[0].id} />}
-              />
-            </Switch>
-          ) : null}
-          <footer>
-            <DialogButton highlight right onTouchTap={() => close(true)}>
-              Done
-            </DialogButton>
-          </footer>
         </div>
       </div>
     );
   }
 }
 
-const RenderLoading = () => (
-  <div className="modal settings">
+function Side({
+  classes,
+  accounts
+}: {
+  accounts: Account[],
+  classes: { [_: $Keys<typeof styles>]: string }
+}) {
+  return (
+    <div className={classes.side}>
+      <div className={classes.sideGrow}>
+        <div className={classes.capsTitle}>{"Accounts"}</div>
+        <div className={classes.sideItems}>
+          {accounts.map(account => (
+            <NavLink
+              key={account.id}
+              style={{ color: account.currency.color }}
+              className={classes.sideItem}
+              to={account.id}
+            >
+              <div className={classes.sideItemAccountName}>{account.name}</div>
+              <div className={classes.sideItemCurrencyName}>
+                {account.currency.name}
+              </div>
+            </NavLink>
+          ))}
+        </div>
+      </div>
+      <div className={classes.sideFooter}>
+        <a className={classes.support} href="mailto:support@ledger.fr">
+          support
+        </a>
+      </div>
+    </div>
+  );
+}
+
+class SettingsModal extends Component<{
+  settingsData: SettingsDataQueryResponse,
+  accounts: Account[],
+  restlay: RestlayEnvironment,
+  close: Function,
+  classes: { [_: $Keys<typeof styles>]: string }
+}> {
+  render() {
+    const { settingsData, accounts, restlay, close, classes } = this.props;
+    return (
+      <div className={classes.container}>
+        <Side classes={classes} accounts={accounts} />
+        <div className={classes.contentWrapper}>
+          <div className={classes.content}>
+            <div className={classes.bigTitle}>{"Settings"}</div>
+            {accounts.length > 0 ? (
+              <Switch>
+                <Route
+                  path="*/settings/:id"
+                  render={props => {
+                    const account = accounts.find(
+                      a => a.id === props.match.params.id
+                    );
+                    return account ? (
+                      <AccountSettingsEdit
+                        {...props}
+                        classes={classes}
+                        settingsData={settingsData}
+                        key={account.id}
+                        account={account}
+                        restlay={restlay}
+                      />
+                    ) : null;
+                  }}
+                />
+                <Route
+                  render={() => <Redirect to={"settings/" + accounts[0].id} />}
+                />
+              </Switch>
+            ) : null}
+          </div>
+          <div className={classes.footer}>
+            <DialogButton highlight right onTouchTap={() => close(true)}>
+              Done
+            </DialogButton>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
+
+const RenderLoading = ({
+  classes
+}: {
+  classes: { [_: $Keys<typeof styles>]: string }
+}) => (
+  <div className={classes.container}>
     <SpinnerCard />
   </div>
 );
 
-export default connectData(SettingsModal, {
-  RenderLoading,
-  queries: {
-    settingsData: SettingsDataQuery,
-    accounts: AccountsQuery
-  }
-});
+export default withStyles(styles)(
+  connectData(SettingsModal, {
+    RenderLoading,
+    queries: {
+      settingsData: SettingsDataQuery,
+      accounts: AccountsQuery
+    }
+  })
+);

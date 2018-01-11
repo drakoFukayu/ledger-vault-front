@@ -1,41 +1,62 @@
 //@flow
 import React, { Component } from "react";
 import Footer from "../../approve/Footer";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { withStyles } from "material-ui/styles";
 import OperationApproveDedails from "./OperationApproveDedails";
 import OperationApproveApprovals from "./OperationApproveApprovals";
-import ApprovalPercentage from "../../../components/ApprovalPercentage";
+import ApprovalPercentage from "components/ApprovalPercentage";
 import OperationApproveLocks from "./OperationApproveLocks";
-import ModalLoading from "../../../components/ModalLoading";
+import ModalLoading from "components/ModalLoading";
 import { withRouter, Redirect } from "react-router";
-import connectData from "../../../restlay/connectData";
-import AccountQuery from "../../../api/queries/AccountQuery";
-import OperationQuery from "../../../api/queries/OperationQuery";
-import MembersQuery from "../../../api/queries/MembersQuery";
+import connectData from "restlay/connectData";
+import OperationWithAccountQuery from "api/queries/OperationWithAccountQuery";
+import MembersQuery from "api/queries/MembersQuery";
 import LocksPercentage from "../../LocksPercentage";
-import ProfileQuery from "../../../api/queries/ProfileQuery";
-import { calculateApprovingObjectMeta } from "../../../data/approvingObject";
-import type { Account, Operation, Member } from "../../../data/types";
+import ProfileQuery from "api/queries/ProfileQuery";
+import { calculateApprovingObjectMeta } from "data/approvingObject";
+import type { Account, Operation, Member } from "data/types";
+import Tabs, { Tab } from "material-ui/Tabs";
+import modals from "shared/modals";
+
+const styles = {
+  base: {
+    ...modals.base,
+    width: "440px",
+    height: "615px"
+  }
+};
 
 type Props = {
-  account: Account,
-  operation: Operation,
+  operationWithAccount: {
+    account: Account,
+    operation: Operation
+  },
   members: Array<Member>,
   profile: Member,
   close: Function,
   approve: Function,
   aborting: Function,
+  classes: { [_: $Keys<typeof styles>]: string },
   match: *
 };
-class OperationApprove extends Component<Props> {
+
+class OperationApprove extends Component<Props, { value: number }> {
+  state = {
+    value: 0
+  };
+
+  handleChange = (event, value) => {
+    this.setState({ value });
+  };
+
   render() {
     const {
-      account,
+      operationWithAccount: { account, operation },
       profile,
-      operation,
       members,
       close,
       approve,
+      classes,
       aborting
     } = this.props;
 
@@ -52,18 +73,19 @@ class OperationApprove extends Component<Props> {
       operation.approved.length < account.security_scheme.quorum;
     const approvingObjectMeta = calculateApprovingObjectMeta(operation);
 
+    const { value } = this.state;
     return (
-      <Tabs>
-        <div className="header">
+      <div className={classes.base}>
+        <header>
           <h2>Operation request</h2>
-          <TabList>
-            <Tab>details</Tab>
-            <Tab>approvals</Tab>
-            <Tab>locks</Tab>
-          </TabList>
-        </div>
-        <div className="content">
-          <TabPanel className="tabs_panel">
+          <Tabs value={value} onChange={this.handleChange}>
+            <Tab label="Details" disableRipple />
+            <Tab label="Approvals" disableRipple />
+            <Tab label="Locks" disableRipple />
+          </Tabs>
+        </header>
+        {value === 0 && (
+          <div className="tabs_panel">
             <OperationApproveDedails
               operation={operation}
               account={account}
@@ -75,8 +97,10 @@ class OperationApprove extends Component<Props> {
               aborting={aborting}
               approved={operation.approved.indexOf(profile.pub_key) > -1}
             />
-          </TabPanel>
-          <TabPanel className="tabs_panel">
+          </div>
+        )}
+        {value === 1 && (
+          <div>
             <OperationApproveApprovals
               members={members}
               operation={operation}
@@ -95,8 +119,10 @@ class OperationApprove extends Component<Props> {
                 />
               }
             />
-          </TabPanel>
-          <TabPanel className="tabs_panel">
+          </div>
+        )}
+        {value === 2 && (
+          <div>
             <OperationApproveLocks operation={operation} account={account} />
             <Footer
               close={close}
@@ -113,9 +139,9 @@ class OperationApprove extends Component<Props> {
                 )
               }
             />
-          </TabPanel>
-        </div>
-      </Tabs>
+          </div>
+        )}
+      </div>
     );
   }
 }
@@ -125,28 +151,16 @@ const RenderError = () => {
 };
 
 export default withRouter(
-  connectData(
-    connectData(OperationApprove, {
-      RenderError,
-      RenderLoading: ModalLoading,
-      queries: {
-        account: AccountQuery
-      },
-      propsToQueryParams: ({ operation }) => ({
-        accountId: operation.account_id
-      })
-    }),
-    {
-      RenderError,
-      RenderLoading: ModalLoading,
-      queries: {
-        operation: OperationQuery,
-        members: MembersQuery,
-        profile: ProfileQuery
-      },
-      propsToQueryParams: props => ({
-        operationId: props.match.params.id || ""
-      })
-    }
-  )
+  connectData(withStyles(styles)(OperationApprove), {
+    RenderError,
+    RenderLoading: ModalLoading,
+    queries: {
+      operationWithAccount: OperationWithAccountQuery,
+      members: MembersQuery,
+      profile: ProfileQuery
+    },
+    propsToQueryParams: props => ({
+      operationId: props.match.params.id || ""
+    })
+  })
 );

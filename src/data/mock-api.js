@@ -1,10 +1,20 @@
 //@flow
-import { denormalize } from "normalizr";
-import mockEntities from "./mock-entities.js";
+import URL from "url";
+import findIndex from "lodash/findIndex";
+import { denormalize } from "normalizr-gre";
+import mockEntities, { genBalance } from "./mock-entities.js";
 import schema from "./schema";
-import type { Account } from "../data/types";
+import type { Operation, Account } from "data/types";
+
+const keywordsMatchesOperation = (
+  keywords: string,
+  op: Operation,
+  acc: Account
+): boolean =>
+  !keywords || keywords.split(/\s+/).every(w => acc.name.includes(w));
 
 const mockSync = (uri: string, method: string, body: ?Object) => {
+  const q = URL.parse(uri, true);
   if (method === "POST") {
     let m;
     m = /^\/accounts\/([^/]+)\/settings$/.exec(uri);
@@ -31,6 +41,7 @@ const mockSync = (uri: string, method: string, body: ?Object) => {
           [schema.Account],
           mockEntities
         );
+      default:
     }
   }
 
@@ -51,6 +62,12 @@ const mockSync = (uri: string, method: string, body: ?Object) => {
     }
   }
 
+  if (method === "POST" && uri === "/authenticate") {
+    return {
+      token: "3aQhFCsHhG0Bc4ohkbWa0_6exrT8UZCGDzgEkGRn7Pg"
+    };
+  }
+
   if (method === "GET") {
     let m;
     m = /^\/accounts\/([^/]+)$/.exec(uri);
@@ -62,24 +79,97 @@ const mockSync = (uri: string, method: string, body: ?Object) => {
         throw new Error("Account Not Found");
       }
     }
-    m = /^\/operations\/([^/]+)$/.exec(uri);
+    m = /^\/operations\/([^/]+)\/with-account/.exec(uri);
     if (m) {
-      const operation = mockEntities.operations[m[1]];
-      if (operation) {
-        return denormalize(operation.uuid, schema.Operation, mockEntities);
+      const operationEntity = mockEntities.operations[m[1]];
+      if (operationEntity) {
+        const operation = denormalize(
+          operationEntity.uuid,
+          schema.Operation,
+          mockEntities
+        );
+        const account = denormalize(
+          operation.account_id,
+          schema.Account,
+          mockEntities
+        );
+        return { operation, account };
       } else {
-        throw new Error("Account Not Found");
+        throw new Error("Operation Not Found");
       }
     }
 
-    m = /^\/accounts\/([^/]+)\/operations$/.exec(uri);
+    m = q && q.pathname && /^\/valid-address\/(.+)/.exec(q.pathname);
+    if (m) {
+      const { address } = q.query || {};
+      if (address) {
+        // fake mock address validation
+        const valid = address.length > 10;
+        return { valid };
+      } else {
+        throw new Error("missing address in query param");
+      }
+    }
+
+    m = q && q.pathname && /^\/search\/operations$/.exec(q.pathname);
+    if (m) {
+      const operations = Object.keys(mockEntities.operations);
+      let { keywords, currencyName, accountId, first, after } = {
+        first: 50,
+        after: null,
+        ...q.query
+      };
+      first = Math.min(first, 100); // server is free to maximize the count number
+      const cursorPrefixToNodeId = "C_"; // the cursor can be arbitrary and not necessarily === node.id
+      let start = 0;
+      const opKeys = operations.filter(key => {
+        const op = denormalize(key, schema.Operation, mockEntities);
+        const acc = denormalize(op.account_id, schema.Account, mockEntities);
+        return (
+          (!accountId || op.account_id === accountId) &&
+          (!currencyName || op.currency_name === currencyName) &&
+          keywordsMatchesOperation(keywords, op, acc)
+        );
+      });
+      if (after !== null) {
+        const i = findIndex(opKeys, k => "C_" + k === after);
+        if (i === -1) {
+          throw new Error("after cursor not found '" + after + "'");
+        }
+        start = i + 1;
+      }
+      const edges = opKeys.slice(start, start + first).map(key => ({
+        node: denormalize(key, schema.Operation, mockEntities),
+        cursor: cursorPrefixToNodeId + key
+      }));
+      const hasNextPage = opKeys.length > start + first;
+      return { edges, pageInfo: { hasNextPage } };
+    }
+
+    m = q && q.pathname && /^\/accounts\/([^/]+)\/operations$/.exec(q.pathname);
     if (m) {
       const account = mockEntities.accounts[m[1]];
       if (account) {
+        let { first, after } = { first: 50, after: null, ...q.query };
+        first = Math.min(first, 100); // server is free to maximize the count number
+        const cursorPrefixToNodeId = "C_"; // the cursor can be arbitrary and not necessarily === node.id
+        let start = 0;
         const opKeys = Object.keys(mockEntities.operations).filter(
           key => mockEntities.operations[key].account_id === account.id
         );
-        return denormalize(opKeys, [schema.Operation], mockEntities);
+        if (after !== null) {
+          const i = findIndex(opKeys, k => "C_" + k === after);
+          if (i === -1) {
+            throw new Error("after cursor not found '" + after + "'");
+          }
+          start = i + 1;
+        }
+        const edges = opKeys.slice(start, start + first).map(key => ({
+          node: denormalize(key, schema.Operation, mockEntities),
+          cursor: cursorPrefixToNodeId + key
+        }));
+        const hasNextPage = opKeys.length > start + first;
+        return { edges, pageInfo: { hasNextPage } };
       } else {
         throw new Error("Account Not Found");
       }
@@ -103,17 +193,29 @@ const mockSync = (uri: string, method: string, body: ?Object) => {
       return { value: mockValuePerSpeed[speed] };
     }
 
-    m = /^\/balance\/([^/]+)\/([^/]+)\/([^/]+\/)?([^/]+\/)?$/.exec(uri);
+    m = /^\/accounts\/([^/]+)\/(balance\?range=)([^/]+)$/.exec(uri);
+    // FIXME ^ use `q` instead
     if (m) {
-      return mockEntities.balance(
-        parseInt(m[1]),
-        parseInt(m[2]),
-        parseInt(m[3]),
-        parseInt(m[4])
-      );
+      return genBalance(parseInt(m[1], 10), m[3]);
     }
 
     switch (uri) {
+      case "/provisioning/administrators/register":
+        return {
+          challenge:
+            "fd4262bdc6f348832785920252b2e47df85dd1abb90882ae74460c16be7948bb"
+        };
+      case "/authentication_challenge":
+        return {
+          challenge:
+            "fd4262bdc6f348832785920252b2e47df85dd1abb90882ae74460c16be7948bb",
+          handles: [
+            "654f16d2cd3ca82a52dd40b402fbb2c3d981c154abd4e16bcd56362e38db6c2e",
+            "16ebae3897572bd156add68ff048d4180f9d0cd89e7159f1eda42c5521683756"
+          ],
+          id: "64696675-350d-43b0-a2de-0cdc5882ba6c"
+        };
+
       case "/currencies":
         return denormalize(
           Object.keys(mockEntities.currencies),
@@ -198,6 +300,7 @@ const mockSync = (uri: string, method: string, body: ?Object) => {
             }
           ]
         };
+      default:
     }
   }
 };

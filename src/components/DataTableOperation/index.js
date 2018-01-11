@@ -1,26 +1,55 @@
 //@flow
 import React, { Component } from "react";
 import { withRouter } from "react-router";
+import colors from "shared/colors";
 import { Link } from "react-router-relative-link";
 import DateFormat from "../DateFormat";
 import CurrencyAccountValue from "../CurrencyAccountValue";
 import AccountName from "../AccountName";
-import Comment from "../icons/Comment";
+import Comment from "../icons/full/Comment";
 import DataTable from "../DataTable";
 import NoDataPlaceholder from "../NoDataPlaceholder";
-import type { Operation, Account, Note } from "../../data/types";
-import "./index.css";
+import type { Operation, Account, Note } from "data/types";
+import { withStyles } from "material-ui/styles";
+
+type Cell = {
+  operation: Operation,
+  account: ?Account
+};
 
 const stopPropagation = (e: SyntheticEvent<*>) => e.stopPropagation();
 
-class OperationNoteLink extends Component<{ operation: Operation }> {
+const styles = {
+  tr: {
+    margin: "0",
+    padding: "0",
+    "&:before": {
+      background: colors.ocean,
+      content: "''",
+      height: "26px",
+      width: "0px",
+      position: "absolute",
+      left: "0",
+      marginTop: "6px"
+    },
+    "&:hover:before": {
+      width: "5px",
+      transition: "width 200ms ease"
+    }
+  }
+};
+
+class OperationNoteLink extends Component<{
+  operation: Operation,
+  classes: Object
+}> {
   render() {
-    const { operation } = this.props;
+    const { operation, classes } = this.props;
     const note: ?Note = operation.notes.length > 0 ? operation.notes[0] : null;
     return (
-      <span className="OperationNoteLink">
+      <span className={classes.base}>
         <Link to={`./operation/${operation.uuid}/2`} onClick={stopPropagation}>
-          <Comment fill="#e2e2e2" className="open-label" />
+          <Comment color={colors.mouse} className={classes.comment} />
         </Link>
         {!note ? null : (
           <div className="tooltip-label">
@@ -37,19 +66,89 @@ class OperationNoteLink extends Component<{ operation: Operation }> {
   }
 }
 
-class DateColumn extends Component<{ operation: Operation }> {
+const styles_note = {
+  base: {
+    position: "relative",
+    marginLeft: "10px",
+    verticalAlign: "sub",
+    "& .tooltip-label": {
+      pointerEvents: "none",
+      opacity: "0",
+      transition: "opacity 0.2s",
+      zIndex: "100",
+      position: "absolute",
+      bottom: "30px",
+      left: "-165px",
+      fontSize: "11px",
+      padding: "30px",
+      background: "white",
+      boxShadow:
+        "0 0 5px 0 rgba(0, 0, 0, 0.04), 0 10px 10px 0 rgba(0, 0, 0, 0.04)",
+      width: "350px",
+      "&:after": {
+        content: "''",
+        position: "absolute",
+        bottom: -15,
+        left: "50%",
+        borderLeft: "15px solid transparent",
+        borderRight: "15px solid transparent",
+        marginLeft: -15,
+        borderTop: "white solid 15px"
+      },
+      "& .hr": {
+        width: "100%",
+        height: 1,
+        backgroundColor: "#eeeeee",
+        margin: 0,
+        marginBottom: 17
+      },
+
+      "& .tooltip-label-title": {
+        fontSize: 13,
+        margin: 0,
+        fontWeight: 600
+      },
+
+      "& .tooltip-label-name": {
+        fontSize: 11,
+        margin: 0,
+        marginTop: 10,
+        marginBottom: 19,
+        color: "#999"
+      },
+
+      "& .tooltip-label-body": {
+        fontSize: 11,
+        lineHeight: 1.82,
+        fontWeight: "normal",
+        margin: 0,
+        whiteSpace: "normal"
+      }
+    },
+    "&:hover .tooltip-label": {
+      opacity: 1
+    }
+  },
+  comment: {
+    width: 16,
+    height: 12
+  }
+};
+const OpNoteLink = withStyles(styles_note)(OperationNoteLink);
+
+class DateColumn extends Component<Cell> {
   render() {
     const { operation } = this.props;
     return (
       <span>
         <DateFormat format="ddd D MMM, h:mmA" date={operation.time} />
-        <OperationNoteLink operation={operation} />
+        <OpNoteLink operation={operation} />
       </span>
     );
   }
 }
 
-class AccountColumn extends Component<{ account: ?Account }> {
+class AccountColumn extends Component<Cell> {
   render() {
     const { account } = this.props;
     return account ? (
@@ -58,7 +157,7 @@ class AccountColumn extends Component<{ account: ?Account }> {
   }
 }
 
-class AddressColumn extends Component<{ operation: Operation }> {
+class AddressColumn extends Component<Cell> {
   render() {
     const { operation } = this.props;
     let hash = "";
@@ -78,7 +177,7 @@ class AddressColumn extends Component<{ operation: Operation }> {
   }
 }
 
-class StatusColumn extends Component<{ operation: Operation }> {
+class StatusColumn extends Component<Cell> {
   render() {
     const { operation } = this.props;
     return (
@@ -87,10 +186,7 @@ class StatusColumn extends Component<{ operation: Operation }> {
   }
 }
 
-class AmountColumn extends Component<{
-  operation: Operation,
-  account: ?Account
-}> {
+class AmountColumn extends Component<Cell> {
   render() {
     const { operation, account } = this.props;
     return account ? (
@@ -103,10 +199,7 @@ class AmountColumn extends Component<{
   }
 }
 
-class CountervalueColumn extends Component<{
-  operation: Operation,
-  account: ?Account
-}> {
+class CountervalueColumn extends Component<Cell> {
   render() {
     const { operation, account } = this.props;
     return account ? (
@@ -125,63 +218,99 @@ const COLS = [
   {
     className: "date",
     title: "date",
-    renderCell: DateColumn
+    Cell: DateColumn
   },
   {
     className: "account",
     title: "account",
-    renderCell: AccountColumn
+    Cell: AccountColumn
   },
   {
     className: "address",
     title: "address",
-    renderCell: AddressColumn
+    Cell: AddressColumn
   },
   {
     className: "status",
     title: "status",
-    renderCell: StatusColumn
+    Cell: StatusColumn
   },
   {
     className: "countervalue",
     title: "",
-    renderCell: CountervalueColumn
+    Cell: CountervalueColumn
   },
   {
     className: "amount",
     title: "amount",
-    renderCell: AmountColumn
+    Cell: AmountColumn
   }
 ];
 
-class DataTableOperation extends Component<{
-  operations: Array<Operation>,
-  accounts: Array<Account>, // accounts is an array that should at least contains the operations's account_id
-  columnIds: Array<string>,
-  history: Object,
-  match: Object
+class RowT extends Component<{
+  cell: Cell,
+  index: number,
+  children: React$Node,
+  classes: Object,
+  openOperation: (string, number) => void
 }> {
+  shouldComponentUpdate({ cell }: *) {
+    return this.props.cell.operation !== cell.operation;
+  }
+  render() {
+    const {
+      openOperation,
+      cell: { operation },
+      children,
+      classes
+    } = this.props;
+    return (
+      <tr
+        style={{ cursor: "pointer" }}
+        className={classes.tr}
+        onClick={() => openOperation(operation.uuid, 0)}
+      >
+        {children}
+      </tr>
+    );
+  }
+}
+
+const Row = withStyles(styles)(RowT);
+
+class DataTableOperation extends Component<
+  {
+    operations: Array<Operation>,
+    accounts: Array<Account>, // accounts is an array that should at least contains the operations's account_id
+    columnIds: Array<string>,
+    history: Object,
+    match: Object
+  },
+  *
+> {
+  state = {
+    columns: COLS.filter(c => this.props.columnIds.includes(c.className))
+  };
+
   openOperation = (uuid: string, n: number = 0) => {
     this.props.history.push(`${this.props.match.url}/operation/${uuid}/${n}`);
   };
 
-  renderRow = (
-    { operation }: { operation: Operation },
-    index: number,
-    children: string | React$Node
-  ) => (
-    <tr
-      key={operation.uuid}
-      style={{ cursor: "pointer" }}
-      onClick={() => this.openOperation(operation.uuid, 0)}
-    >
-      {children}
-    </tr>
+  renderRow = (props: *) => (
+    <Row {...props} openOperation={this.openOperation} />
   );
 
+  componentWillReceiveProps(props) {
+    if (props.columnIds !== this.props.columnIds) {
+      this.setState({
+        columns: COLS.filter(c => props.columnIds.includes(c.className))
+      });
+    }
+  }
+
   render() {
-    const { accounts, operations, columnIds } = this.props;
-    const columns = COLS.filter(c => columnIds.includes(c.className));
+    const { columns } = this.state;
+    const { accounts, operations } = this.props;
     const data = operations.map(operation => ({
       operation,
       account: accounts.find(a => a.id === operation.account_id)
@@ -189,7 +318,7 @@ class DataTableOperation extends Component<{
     return data.length === 0 ? (
       <NoDataPlaceholder title="No operations." />
     ) : (
-      <DataTable data={data} columns={columns} renderRow={this.renderRow} />
+      <DataTable data={data} columns={columns} Row={this.renderRow} />
     );
   }
 }

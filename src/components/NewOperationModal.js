@@ -1,10 +1,10 @@
 //@flow
 import React, { Component } from "react";
 import OperationCreation from "./operations/creation/OperationCreation";
-import connectData from "../restlay/connectData";
-import AccountsQuery from "../api/queries/AccountsQuery";
-import ModalLoading from "../components/ModalLoading";
-import type { Account } from "../data/types";
+import connectData from "restlay/connectData";
+import AccountsQuery from "api/queries/AccountsQuery";
+import ModalLoading from "components/ModalLoading";
+import type { Account } from "data/types";
 
 export type Details = {
   amount: ?number,
@@ -15,7 +15,9 @@ export type Details = {
 class NewOperationModal extends Component<
   {
     accounts: Array<Account>,
-    close: Function
+    close: Function,
+    history: *,
+    location: *
   },
   {
     tabsIndex: number,
@@ -34,14 +36,14 @@ class NewOperationModal extends Component<
   };
 
   onSaveOperation = () => {
-    console.log(
+    console.warn(
       "TODO: this.props.restlay.commitUpdate(new SaveOperationMutation({...}))"
     );
 
     this.props.close();
   };
 
-  onSelect = (tabsIndex: number) => {
+  onTabsChange = (tabsIndex: number) => {
     this.setState({ tabsIndex });
   };
 
@@ -53,8 +55,6 @@ class NewOperationModal extends Component<
   };
 
   saveDetails = (details: Details) => {
-    console.log(details);
-
     this.setState({ details });
   };
 
@@ -63,7 +63,7 @@ class NewOperationModal extends Component<
     return (
       <OperationCreation
         close={close}
-        onSelect={this.onSelect}
+        onTabsChange={this.onTabsChange}
         save={this.onSaveOperation}
         accounts={accounts}
         selectAccount={this.selectAccount}

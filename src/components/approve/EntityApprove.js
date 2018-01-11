@@ -1,17 +1,15 @@
 //@flow
 import React, { Component } from "react";
-import connectData from "../../restlay/connectData";
-import { withRouter } from "react-router";
-import BlurDialog from "../BlurDialog"; // FIXME use ModalRoute
+import connectData from "restlay/connectData";
 import AbortConfirmation from "./AbortConfirmation";
 import ApproveDevice from "./ApproveDevice";
 import AccountApprove from "../accounts/approve/AccountApprove";
 
-import PendingsQuery from "../../api/queries/PendingsQuery";
-import ApproveAccount from "../../api/mutations/ApproveAccountMutation";
-import AbortAccount from "../../api/mutations/AbortAccountMutation";
-import ApproveOperation from "../../api/mutations/ApproveOperationMutation";
-import AbortOperation from "../../api/mutations/AbortOperationMutation";
+import PendingsQuery from "api/queries/PendingsQuery";
+import ApproveAccount from "api/mutations/ApproveAccountMutation";
+import AbortAccount from "api/mutations/AbortAccountMutation";
+import ApproveOperation from "api/mutations/ApproveOperationMutation";
+import AbortOperation from "api/mutations/AbortOperationMutation";
 import OperationApprove from "../operations/approve/OperationApprove";
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -88,45 +86,41 @@ class EntityApprove extends Component<Props, State> {
     const { isDevice, isAborting } = this.state;
 
     return (
-      <div className="entity-approve">
-        <BlurDialog open={!isDevice && isAborting}>
-          <AbortConfirmation
-            entity={entity}
-            aborting={this.aborting}
-            abort={this.abort}
-          />
-        </BlurDialog>
-        <BlurDialog
-          open={this.state.isDevice && !this.state.isAborting}
-          nopadding
-        >
-          <ApproveDevice entity={entity} cancel={this.approving} />
-        </BlurDialog>
-        <BlurDialog
-          open={!this.state.isDevice && !this.state.isAborting}
-          nopadding
-          onRequestClose={this.close}
-        >
-          <div className="modal" style={{ height: "615px" }}>
-            {entity === "account" && (
-              <AccountApprove
-                close={this.close}
-                approve={this.approving}
-                aborting={this.aborting}
-              />
-            )}
-            {entity === "operation" && (
-              <OperationApprove
-                close={this.close}
-                approve={this.approving}
-                aborting={this.aborting}
-              />
-            )}
-          </div>
-        </BlurDialog>
+      <div>
+        {!isDevice &&
+          isAborting && (
+            <AbortConfirmation
+              entity={entity}
+              aborting={this.aborting}
+              abort={this.abort}
+            />
+          )}
+        {this.state.isDevice &&
+          !this.state.isAborting && (
+            <ApproveDevice entity={entity} cancel={this.approving} />
+          )}
+        {!this.state.isDevice &&
+          !this.state.isAborting && (
+            <div style={{ height: "615px" }}>
+              {entity === "account" && (
+                <AccountApprove
+                  close={this.close}
+                  approve={this.approving}
+                  aborting={this.aborting}
+                />
+              )}
+              {entity === "operation" && (
+                <OperationApprove
+                  close={this.close}
+                  approve={this.approving}
+                  aborting={this.aborting}
+                />
+              )}
+            </div>
+          )}
       </div>
     );
   }
 }
 
-export default withRouter(connectData(EntityApprove));
+export default connectData(EntityApprove);

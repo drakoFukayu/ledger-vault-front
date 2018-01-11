@@ -1,143 +1,129 @@
 // @flow
-
-import * as React from "react";
-import { Component } from "react";
-import bitcoinAddress from "bitcoin-address";
-// import currencies from "../../../currencies";
-import connectData from "../../../restlay/connectData";
-import CurrenciesQuery from "../../../api/queries/CurrenciesQuery";
-import { PopBubble, TextField, Divider } from "../../../components";
-import ArrowDown from "../../icons/ArrowDown";
+import React, { Component } from "react";
+import { withStyles } from "material-ui/styles";
+import colors from "../../../shared/colors";
+import connectData from "restlay/connectData";
+import { TextField } from "components";
 import CurrencyNameValue from "../../CurrencyNameValue";
-import type { Currency, Unit, Account } from "../../../data/types";
+import type { Account } from "data/types";
 import type { Details } from "../../NewOperationModal";
-import AccountCalculateFeeQuery from "../../../api/queries/AccountCalculateFeeQuery";
-import {
-  countervalueForRate,
-  formatCurrencyUnit
-} from "../../../data/currency";
-
-import "./OperationCreationDetails.css";
-
-type Props = {
-  account: Account,
-  saveDetails: Function,
-  details: Details,
-
-  // from connectData
-  currencies: Array<Currency>
-};
+import AccountCalculateFeeQuery from "api/queries/AccountCalculateFeeQuery";
+import ValidateAddressQuery from "api/queries/ValidateAddressQuery";
+import type { Speed } from "api/queries/AccountCalculateFeeQuery";
+import { countervalueForRate, formatCurrencyUnit } from "data/currency";
+import ModalSubTitle from "./ModalSubTitle";
+import CryptoAddressPicker from "../../CryptoAddressPicker";
+import FeeSelect from "./FeeSelect";
+import UnitSelect from "./UnitSelect";
+import MaxSelect from "./MaxSelect";
 
 type State = {
-  unit: Unit,
-  unitMenuOpen: boolean,
+  unitIndex: number,
   maxMenuOpen: boolean,
   amount: string,
   amountIsValid: boolean,
   satoshis: number,
   address: string,
   addressIsValid: boolean,
-  feesMenuOpen: boolean,
-  feesSelected: string,
-  feesAmount: number
+  feesSelected: Speed,
+  feesAmount: number,
 };
 
-type Fee = {
-  title: string
+const styles = {
+  root: {
+    padding: "0 40px",
+  },
+  unitSelect: {
+    fontSize: 22,
+  },
+  countervalue: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    lineHeight: 2.42,
+    fontSize: 22,
+    color: colors.lead,
+    marginBottom: 25,
+  },
+  feesFiat: {
+    marginTop: 18,
+    textAlign: "right",
+    color: colors.steel,
+    fontWeight: 600,
+    fontSize: 11,
+  },
 };
 
-class OperationCreationDetails extends Component<Props, State> {
-  constructor(props: Props) {
+const InputFieldMerge = ({ children }: *) => (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "flex-end",
+      width: "100%",
+    }}
+  >
+    {children}
+  </div>
+);
+
+class OperationCreationDetails extends Component<
+  {
+    account: Account,
+    saveDetails: Function,
+    details: Details,
+    classes: { [_: $Keys<typeof styles>]: string },
+    // from connectData
+    restlay: *,
+  },
+  State,
+> {
+  constructor(props) {
     super(props);
-
-    const { account, currencies } = this.props;
-
-    this.currency = currencies.find(c => c.name === account.currency.name);
-
-    this.fees = {
-      slow: {
-        title: "Slow (1 hour)"
-      },
-      medium: {
-        title: "Medium (30 minutes)"
-      },
-      fast: {
-        title: "Fast (10 minutes)"
-      }
-    };
-
+    const { account } = this.props;
     this.state = {
-      // $FlowFixMe
-      unit: this.currency.units[0],
-      unitMenuOpen: false,
+      unitIndex: account.settings.unitIndex,
       maxMenuOpen: false,
       amount: "",
       amountIsValid: true,
       satoshis: 0,
       address: "",
       addressIsValid: true,
-      feesMenuOpen: false,
       feesSelected: "medium",
-      feesAmount: 0
+      feesAmount: 0,
     };
-
     this.setFees("medium");
   }
 
-  currency: ?Currency;
-  unitMenuAnchor: ?HTMLDivElement;
-  maxMenuAnchor: ?HTMLDivElement;
-  feesMenuAnchor: ?HTMLDivElement;
-  // feesList
-  fees: {
-    slow: Fee,
-    medium: Fee,
-    fast: Fee
-  };
-
   setAmount = (
     amount: string = this.state.amount,
-    magnitude: number = this.state.unit.magnitude,
-    fees: number = this.state.feesAmount
+    magnitude: number = this.props.account.currency.units[this.state.unitIndex].magnitude,
+    fees: number = this.state.feesAmount,
   ) => {
-    const satoshis: number = Math.round(
-      (parseFloat(amount) || 0) * 10 ** magnitude
-    );
+    const satoshis: number = Math.round((parseFloat(amount) || 0) * 10 ** magnitude);
     const balance: number = this.props.account.balance;
     const max: number = balance - fees;
-    const decimals: string = amount
-      .replace(/(.*\.|.*[^.])/, "")
-      .replace(/0+$/, "");
+    const decimals: string = amount.replace(/(.*\.|.*[^.])/, "").replace(/0+$/, "");
 
     this.setState(
       {
         amount,
         amountIsValid: satoshis <= max && decimals.length <= magnitude,
-        satoshis: satoshis
+        satoshis: satoshis,
       },
-      this.validateTab
+      this.validateTab,
     );
   };
 
-  selectUnit = (e: SyntheticEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const target: HTMLDivElement = e.currentTarget;
-    const unitNb: number = parseInt(target.dataset.unit);
-    // $FlowFixMe
-    const unit: Unit = this.currency.units[unitNb];
-
-    this.setState({
-      unit,
-      unitMenuOpen: false
-    });
-
+  onChangeUnit = (unitIndex: number) => {
+    this.setState({ unitIndex });
+    const unit = this.props.account.currency.units[unitIndex];
     this.setAmount(this.state.amount, unit.magnitude);
   };
 
   updateAmount = (e: SyntheticEvent<HTMLInputElement>) => {
-    const value: string = e.currentTarget.value;
-    const regex: regex = /^(\d*\.?\d*)?$/;
-
+    const value = e.currentTarget.value;
+    const regex = /^(\d*\.?\d*)?$/;
     if (regex.test(value)) {
       this.setAmount(value);
     }
@@ -146,7 +132,7 @@ class OperationCreationDetails extends Component<Props, State> {
   setMax = (e: SyntheticEvent<HTMLDivElement>) => {
     e.preventDefault();
 
-    const magnitude = this.state.unit.magnitude;
+    const magnitude = this.props.account.currency.units[this.state.unitIndex].magnitude;
     const balance = this.props.account.balance;
     const fees = this.state.feesAmount;
     const amount = (balance - fees) / 10 ** magnitude;
@@ -156,292 +142,118 @@ class OperationCreationDetails extends Component<Props, State> {
     this.setAmount(`${amount}`);
   };
 
-  updateAddress = (e: SyntheticEvent<HTMLInputElement>) => {
-    const address: string = e.currentTarget.value.trim();
-    const addressIsValid: boolean =
-      address === "" || bitcoinAddress.validate(address);
-
-    this.setState(
-      {
-        address,
-        addressIsValid
-      },
-      this.validateTab
-    );
+  updateAddress = (address: string) => {
+    const { restlay, account: { currency } } = this.props;
+    this.setState({ address, addressIsValid: false }, this.validateTab); // FIXME we might want a "pending" internal state for the component to render not a red validation but another thing
+    // NB ideally we will want the CONTINUE button to wait the validation passed.
+    // it means we probably need to do the validation from parent and pass-in the validation state
+    if (address) {
+      restlay // TODO potentially should debounce this check.
+        .fetchQuery(new ValidateAddressQuery({ currency, address }))
+        .then(r => {
+          if (address === this.state.address) {
+            // still on same address
+            this.setState({ addressIsValid: r.valid }, this.validateTab);
+          }
+        });
+    }
   };
 
-  setFees = (fee: string) => {
+  setFees = (fee: Speed) => {
     const { restlay, account } = this.props;
 
-    restlay
-      .fetchQuery(
-        new AccountCalculateFeeQuery({ account, speed: fee })
-      )
-      .then(res => {
-        const feesAmount = res.value;
+    restlay.fetchQuery(new AccountCalculateFeeQuery({ account, speed: fee })).then(res => {
+      const feesAmount = res.value;
 
-        this.setState({ feesAmount });
-        this.setAmount(undefined, undefined, feesAmount);
-      });
-  };
-
-  selectFee = (e: SyntheticEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const target: HTMLDivElement = e.currentTarget;
-    const feesSelected: string = target.dataset.fee;
-
-    this.setFees(feesSelected);
-
-    this.setState({
-      feesSelected,
-      feesMenuOpen: false
+      this.setState({ feesAmount });
+      this.setAmount(undefined, undefined, feesAmount);
     });
   };
 
+  onChangeFee = (feesSelected: Speed) => {
+    this.setFees(feesSelected);
+    this.setState({ feesSelected });
+  };
+
   validateTab = () => {
+    // FIXME this should be refactored and remove. validation to be done in render() / address/amount to come via props from parent
     const details: Details = {
-      amount:
-        this.state.satoshis > 0 && this.state.amountIsValid
-          ? this.state.satoshis
-          : null,
-      address:
-        this.state.address !== "" && this.state.addressIsValid
-          ? this.state.address
-          : null,
-      fees: this.state.feesAmount
+      amount: this.state.satoshis > 0 && this.state.amountIsValid ? this.state.satoshis : null,
+      address: this.state.address !== "" && this.state.addressIsValid ? this.state.address : null,
+      fees: this.state.feesAmount,
     };
 
     this.props.saveDetails(details);
   };
 
   getCounterValue = (sat: number, showCode: boolean = false) => {
-    const counterValue = countervalueForRate(
-      this.props.account.currencyRate,
-      sat
-    );
-    const fiat = formatCurrencyUnit(
-      counterValue.unit,
-      counterValue.value,
-      showCode,
-      false,
-      true
-    );
+    const counterValue = countervalueForRate(this.props.account.currencyRate, sat);
+    const fiat = formatCurrencyUnit(counterValue.unit, counterValue.value, showCode, false, true);
 
     return fiat;
   };
 
   render() {
-    // console.log(this.props.account.currencyRate.fiat);
+    const { account, classes } = this.props;
+    const { unitIndex } = this.state;
     return (
-      <div className="operation-creation-details wrapper">
-        {/* Amount */}
+      <div className={classes.root}>
+        <ModalSubTitle noPadding>Amount</ModalSubTitle>
 
-        <div className="tab-title">Amount</div>
-        <div className="amount-field-wrapper" style={{ position: "relative" }}>
-          <TextField
-            className="operation-creation-amount-field"
-            id="operation-creation-amount-field"
-            hintText="0"
-            value={this.state.amount}
-            hasError={!this.state.amountIsValid}
-            onChange={this.updateAmount}
-            style={{ textAlign: "right" }}
+        <InputFieldMerge>
+          <UnitSelect
+            units={account.currency.units}
+            index={unitIndex}
+            onChange={this.onChangeUnit}
           />
-          <div
-            className="operation-creation-unit-selector"
-            ref={e => {
-              this.unitMenuAnchor = e;
-            }}
-            onClick={() => this.setState({ unitMenuOpen: true })}
-            role="button"
-            // tabIndex={0}
-            style={{
-              cursor: "pointer",
-              position: "absolute",
-              top: 0
-            }}
-          >
-            <div className="operation-creation-unit" style={{ float: "left" }}>
-              {this.state.unit.code}
-            </div>
-            <div
-              className="operation-creation-arrow-down"
-              style={{ float: "left", marginLeft: "9.5px" }}
-            >
-              <ArrowDown />
-            </div>
-          </div>
-          <div
-            className="operation-creation-arrow-down"
-            style={{
-              cursor: "pointer",
-              position: "absolute",
-              right: 0,
-              top: 0
-            }}
-            ref={e => {
-              this.maxMenuAnchor = e;
-            }}
-            onClick={() => this.setState({ maxMenuOpen: true })}
-          >
-            <ArrowDown />
-          </div>
-        </div>
-        <div className="operation-creation-countervalue">
-          <div
-            style={{
-              float: "left"
-            }}
-          >
-            {this.props.account.currencyRate.fiat}
-          </div>
-          <div
-            style={{
-              float: "right"
-            }}
-          >
-            {this.getCounterValue(this.state.satoshis)}
-          </div>
-        </div>
-        <PopBubble
-          open={this.state.unitMenuOpen}
-          anchorEl={this.unitMenuAnchor}
-          onRequestClose={() => this.setState({ unitMenuOpen: false })}
-        >
-          <ul className="operation-creation-unit-list">
-            {// $FlowFixMe
-            this.currency.units.map((unit, index) => (
-              <li key={unit.name}>
-                <a
-                  href="unit"
-                  onClick={this.selectUnit}
-                  data-unit={index}
-                  className={unit.name === this.state.unit.name ? "active" : ""}
-                >
-                  {unit.code}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </PopBubble>
-        <PopBubble
-          open={this.state.maxMenuOpen}
-          anchorEl={this.maxMenuAnchor}
-          onRequestClose={() => this.setState({ maxMenuOpen: false })}
-          className="operation-creation-send-max"
-        >
-          <a href="setMax" onClick={this.setMax}>
-            Send max
-          </a>
-        </PopBubble>
+          <TextField
+            placeholder="0"
+            fullWidth
+            inputProps={{ style: { textAlign: "right", fontSize: 22 } }}
+            value={this.state.amount}
+            error={!this.state.amountIsValid}
+            onChange={this.updateAmount}
+          />
+          <MaxSelect onSetMax={this.setMax} />
+        </InputFieldMerge>
 
-        {/* Address */}
+        <div className={classes.countervalue}>
+          <div>{this.props.account.currencyRate.fiat}</div>
+          <div>{this.getCounterValue(this.state.satoshis)}</div>
+        </div>
 
-        <div className="tab-title title-address">Address to credit</div>
-        <TextField
-          className="operation-creation-address"
-          id="operation-creation-address"
-          style={{ fontSize: "13px" }}
+        <ModalSubTitle noPadding>Address to credit</ModalSubTitle>
+
+        <CryptoAddressPicker
+          id="address"
           onChange={this.updateAddress}
-          hasError={!this.state.addressIsValid}
           value={this.state.address}
+          isValid={this.state.addressIsValid}
+          fullWidth
+          inputProps={{ style: { paddingBottom: 15 } }}
+          style={{ marginBottom: 20 }}
         />
 
-        {/* Fees */}
+        <ModalSubTitle noPadding>Confirmation fees</ModalSubTitle>
 
-        <div className="tab-title">Confirmation fees</div>
-        <div
-          className="operation-creation-fees-wrapper"
-          style={{ position: "relative" }}
-        >
-          <div
-            className="operation-creation-fees-button"
-            ref={e => {
-              this.feesMenuAnchor = e;
-            }}
-            onClick={() => this.setState({ feesMenuOpen: true })}
-            style={{
-              float: "left"
-            }}
-          >
-            {this.fees[this.state.feesSelected].title}
-            <div className="operation-creation-arrow-down">
-              <ArrowDown />
-            </div>
-          </div>
-          <div
-            className="operation-creation-fees-amount"
-            style={{
-              float: "right",
-              fontSize: "13px",
-              fontWeight: 600
-            }}
-          >
-            <CurrencyNameValue
-              // $FlowFixMe
-              currencyName={this.currency.name}
-              value={this.state.feesAmount}
-            />
-          </div>
-        </div>
-        <Divider className="operation-creation-fees-divider" />
-        <div className="operation-creation-fees-countervalue">
+        <InputFieldMerge>
+          <FeeSelect value={this.state.feesSelected} onChange={this.onChangeFee} />
           <div
             style={{
-              float: "right",
-              fontSize: "11px",
-              fontWeight: 600
+              flex: 1,
+              textAlign: "right",
+              paddingBottom: 20,
+              borderBottom: "1px solid #eeeeee",
             }}
           >
-            {this.getCounterValue(this.state.feesAmount, true)}
+            <CurrencyNameValue currencyName={account.currency.name} value={this.state.feesAmount} />
           </div>
-        </div>
-        <PopBubble
-          open={this.state.feesMenuOpen}
-          anchorEl={this.feesMenuAnchor}
-          onRequestClose={() => this.setState({ feesMenuOpen: false })}
-          className="operation-creation-fees-menu"
-        >
-          <ul className="operation-creation-fees-list">
-            <li>
-              <a
-                href="fee"
-                onClick={this.selectFee}
-                data-fee="slow"
-                className={this.state.feesSelected === "slow" ? "active" : ""}
-              >
-                Slow (1 hour)
-              </a>
-            </li>
-            <li>
-              <a
-                href="fee"
-                onClick={this.selectFee}
-                data-fee="medium"
-                className={this.state.feesSelected === "medium" ? "active" : ""}
-              >
-                Medium (30 minutes)
-              </a>
-            </li>
-            <li>
-              <a
-                href="fee"
-                onClick={this.selectFee}
-                data-fee="fast"
-                className={this.state.feesSelected === "fast" ? "active" : ""}
-              >
-                Fast (10 minutes)
-              </a>
-            </li>
-          </ul>
-        </PopBubble>
+        </InputFieldMerge>
+
+        <div className={classes.feesFiat}>{this.getCounterValue(this.state.feesAmount, true)}</div>
       </div>
     );
   }
 }
 
-export default connectData(OperationCreationDetails, {
-  queries: {
-    currencies: CurrenciesQuery
-  }
-});
+export default withStyles(styles)(connectData(OperationCreationDetails));

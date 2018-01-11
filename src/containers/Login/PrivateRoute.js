@@ -1,15 +1,9 @@
 //@flow
 import React from "react";
-import { Route, Redirect } from "react-router";
-import { connect } from "react-redux";
-
-const mapStateToProps = state => ({
-  isAuthenticated: state.auth.isAuthenticated
-});
+import { Route } from "react-router";
 
 const PrivateRoute = ({
   component: Component,
-  isAuthenticated,
   ...rest
 }: {
   component: React$ComponentType<*>,
@@ -18,17 +12,9 @@ const PrivateRoute = ({
   <Route
     {...rest}
     render={(props: *) => {
-      return true || isAuthenticated ? (
-        <Component {...props} />
-      ) : (
-        <Redirect
-          to={
-            "/login?redirectTo=" + encodeURIComponent(props.location.pathname)
-          }
-        />
-      );
+      return <Component {...props} />;
     }}
   />
 );
 
-export default connect(mapStateToProps, () => ({}))(PrivateRoute);
+export default PrivateRoute;
